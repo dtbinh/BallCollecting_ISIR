@@ -1,0 +1,4 @@
+#! /usr/bin/env python
+
+def kokowawa (ctx):
+    print "Hello from " + ctx.path.abspath()

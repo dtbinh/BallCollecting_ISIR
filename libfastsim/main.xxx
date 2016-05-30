@@ -1,0 +1,419 @@
+/*
+** main.cc
+** Copyright (C) 2008 Jean-Baptiste MOURET
+** This program is free software; you can redistribute it and/or modify
+** it under the terms of the GNU General Public License as published by
+** the Free Software Foundation; either version 2 of the License, or
+** (at your option) any later version.
+**
+** This program is distributed in the hope that it will be useful,
+** but WITHOUT ANY WARRANTY; without even the implied warranty of
+** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+** GNU General Public License for more details.
+**
+** You should have received a copy of the GNU General Public License
+** along with this program; if not, write to the Free Software
+** Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*/
+
+#include <iostream>
+#include <stdlib.h>     /* srand, rand */
+#include <tuple>
+#include <ctime> // Needed for the true randomization
+#include <cstdlib>
+#include "fastsim.hpp"
+
+#include <stdint.h>
+#include <SDL/SDL_keyboard.h>
+#include <SDL.h>
+
+#include <math.h>       /* pow */
+
+using namespace std;
+using namespace fastsim;
+class robotStatusMessage{
+
+};
+
+float RandomNumberGenerator(int start, int finish, bool randomSign=false){
+    assert (finish > start);
+    if (randomSign==false){
+        return (rand()*float(finish)/RAND_MAX) + float(start);
+    }
+    else{
+        // There is a 50-50 chance of either negative or positive
+        float randomNumber = rand()/float(RAND_MAX);
+        cout << "randomNumber = " << randomNumber << endl;
+        if (randomNumber > 0.3){
+            return (rand()*float(finish)/RAND_MAX) + float(start);
+        }
+        else{
+            return ((rand()*float(finish)/RAND_MAX) + float(start)) * -1.0f;
+        }
+    }
+}
+
+class CollectBall{
+private:
+    boost::shared_ptr<Map> m;
+    //Robot r;
+    Robot *r;
+    Display *d;
+    typedef tuple<float, float> robotMovementInstructions;
+    typedef tuple<float, float, float, bool, bool, float> robotSensorReadings;
+    typedef tuple<float, float> robotMotorInstruction;
+    Uint8* keys;
+public:
+    //MyFirstRobot(string mapFileName): m(boost::shared_ptr<Map>(new Map("cuisine.pbm", 600)))
+    //MyFirstRobot(const char *mapFileName): m(boost::shared_ptr<Map>(new Map(mapFileName, 600)))
+    CollectBall(const char *mapFileName)
+    {
+        //this->m = boost::shared_ptr<Map>(new Map(mapFileName, 600));
+        this->m = boost::shared_ptr<Map>(new Map(mapFileName, 600));
+        this->m->add_goal(Goal(100, 100, 10, 0));
+        //this->m->add_goal(Goal(300, 300, 10, 0));
+        Map::ill_sw_t s9 = Map::ill_sw_t(new IlluminatedSwitch(100,10, 300, 300, true));
+        this->m->add_illuminated_switch(s9);
+        this->r = new Robot(20.0f, Posture(200, 200, 0));
+        /*this->r->add_laser(Laser(M_PI / 4.0, 100.0f));
+        this->r->add_laser(Laser(-M_PI / 4.0, 100.0f));
+        this->r->add_laser(Laser(0.0f, 100.0f));
+        this->r->add_radar(Radar(0, 4));*/
+        this->r->add_light_sensor(LightSensor(100, M_PI / 4.0, M_PI / 2.0 + 0.01));
+        this->r->add_light_sensor(LightSensor(100, - M_PI / 4.0, M_PI / 2.0 + 0.01));
+        this->r->add_light_sensor(LightSensor(100, 0.0f, M_PI / 2.0 + 0.01));
+        //this->r->add_radar(Radar(2.0f, 4));
+
+        // Display the screen
+        this->d = new Display(this->m, *this->r);
+    }
+
+    bool gameOver(){
+        // Loop over the number of goals we have
+        auto goals = this->m->get_goals();
+        auto switches = this->m->get_illuminated_switches();
+        auto robotPosition = this->r->get_pos();
+        auto robotPosX = robotPosition.get_x();
+        auto robotPosY = robotPosition.get_y();
+        auto robotDim = this->r->get_radius();
+
+        for (size_t i = 0; i < goals.size() ; i++){
+            auto goalDim = goals[i].get_diam();
+            auto goalX = goals[i].get_x();
+            auto goalY = goals[i].get_y();
+
+            auto distance = sqrt(pow(goalX - robotPosX, 2.0) + pow(goalY - robotPosY, 2.0));
+            //if ((goals[i].get_y() == robotPosition.get_y()) && (goals[i].get_x() == robotPosition.get_x())){
+            if (distance <= (robotDim + goalDim)){
+                return true;
+            }
+        }
+
+        for (size_t i = 0; i < switches.size() ; i++){
+            if (switches[i] -> get_on() == true){
+                auto switcheDim = switches[i]->get_radius();
+                auto switcheX = switches[i]->get_x();
+                auto switcheY = switches[i]->get_y();
+
+                auto distance = sqrt(pow(switcheX - robotPosX, 2.0) + pow(switcheY - robotPosY, 2.0));
+                //if ((goals[i].get_y() == robotPosition.get_y()) && (goals[i].get_x() == robotPosition.get_x())){
+                if (distance <= (robotDim + switcheDim)){
+                    switches[i]->set_off();
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    void keyBoardControl(){
+        float move_left = 0.0;
+        float move_right = 0.0;
+        for (int i = 0; i < 10000; ++i)
+        {
+            int numkey;
+            SDL_PumpEvents();
+            keys = SDL_GetKeyState(&numkey);
+
+            if (keys[SDLK_s]) {
+                move_left = 0.0;
+                move_right = 0.0;
+            }
+            else if (keys[SDLK_UP]) {
+                move_left = 1.0;
+                move_right = 1.0;
+            }
+            else if (keys[SDLK_DOWN]) {
+                move_left = -1.0;
+                move_right = -1.0;
+            }
+            else if (keys[SDLK_LEFT]) {
+                move_left = 1.0;
+                move_right = -1.0;
+            }
+            else if (keys[SDLK_RIGHT]) {
+                move_left = -1.0;
+                move_right = 1.0;
+            }
+            else{
+                move_left = 0.0;
+                move_right = 0.0;
+            }
+
+            this->m->update(this->r->get_pos());
+            this->d->update();
+
+            if (this->gameOver() == true){
+                cout << "GAME OVER!!!!!!!!!!!!!!!!!!!!!" << endl;
+                break;
+            }
+            else{
+                cout << "The game continues ..... " << endl;
+            }
+            //this->r->move(1.0, 1.1, m);
+            this->r->move(move_left, move_right, m);
+        }
+    }
+    void printLightSensorsReadings (){
+        auto light_sensors = this->r->get_light_sensors();
+        for (size_t i = 0; i < light_sensors.size() ; i++){
+            cout << "Light sensor number " << i << " - Activation : " << light_sensors[i].get_activated() << endl;
+        }
+        cout << "--------------------------------" << endl;
+    }
+    robotSensorReadings robotStatusWrapping(){
+        robotSensorReadings robotStatus(this->r->get_lasers()[0].get_dist(),
+            this->r->get_lasers()[1].get_dist(),
+            this->r->get_lasers()[2].get_dist(),
+            this->r->get_left_bumper(),
+            this->r->get_left_bumper(),
+            this->r->get_radars()[0].get_inc());
+        return robotStatus;
+    }
+};
+
+class MyFirstRobot{
+/*
+This is an experimental robot. It will move randomly at the moment.
+The point is to get familiar with the simulator
+*/
+private:
+    boost::shared_ptr<Map> m;
+    //Robot r;
+    Robot *r;
+    Display *d;
+    typedef tuple<float, float> robotMovementInstructions;
+    typedef tuple<float, float, float, bool, bool, float> robotSensorReadings;
+    typedef tuple<float, float> robotMotorInstruction;
+    Uint8* keys;
+public:
+    //MyFirstRobot(string mapFileName): m(boost::shared_ptr<Map>(new Map("cuisine.pbm", 600)))
+    //MyFirstRobot(const char *mapFileName): m(boost::shared_ptr<Map>(new Map(mapFileName, 600)))
+    MyFirstRobot(const char *mapFileName)
+    {
+        //this->m = boost::shared_ptr<Map>(new Map(mapFileName, 600));
+        this->m = boost::shared_ptr<Map>(new Map(mapFileName, 600));
+        this->m->add_goal(Goal(100, 100, 10, 0));
+        this->m->add_goal(Goal(300, 300, 10, 0));
+        this->r = new Robot(20.0f, Posture(200, 200, 0));
+        this->r->add_laser(Laser(M_PI / 4.0, 100.0f));
+        this->r->add_laser(Laser(-M_PI / 4.0, 100.0f));
+        this->r->add_laser(Laser(0.0f, 100.0f));
+        this->r->add_radar(Radar(0, 4));
+        //this->r->add_radar(Radar(2.0f, 4));
+
+        // Display the screen
+        this->d = new Display(this->m, *this->r);
+    }
+
+    bool gameOver(){
+        // Loop over the number of goals we have
+        auto goals = this->m->get_goals();
+        auto robotPosition = this->r->get_pos();
+        auto robotPosX = robotPosition.get_x();
+        auto robotPosY = robotPosition.get_y();
+        auto robotDim = this->r->get_radius();
+
+        for (size_t i = 0; i < goals.size() ; i++){
+            auto goalDim = goals[i].get_diam();
+            auto goalX = goals[i].get_x();
+            auto goalY = goals[i].get_y();
+
+            auto distance = sqrt(pow(goalX - robotPosX, 2.0) + pow(goalY - robotPosY, 2.0));
+            //if ((goals[i].get_y() == robotPosition.get_y()) && (goals[i].get_x() == robotPosition.get_x())){
+            if (distance <= (robotDim + goalDim)){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void standardMovement(){
+        for (int i = 0; i < 10000; ++i)
+        {
+          this->d->update();
+          this->r->move(1.0, 1.1, m);
+          usleep(1000);
+        }
+    }
+
+    void randomMovement(){
+        float v1; // Generate a random number between 0 and 2
+        float v2; // Generate a random number between 0 and 2
+        srand(time(0));
+        for (int i = 0; i < 10000; ++i)
+        {
+            v1 = RandomNumberGenerator(0,3,true);
+            v2 = RandomNumberGenerator(0,3,true);
+            //v1 = rand() * 3.0f / RAND_MAX;
+            //v2 = rand() * 3.0f / RAND_MAX;
+            cout << "v1 = " << v1 << " , v2 = " << v2 << endl;
+            this->m->update(this->r->get_pos());
+            this->d->update();
+            //this->r->move(1.0, 1.1, m);
+            this->r->move(v1, v2, m);
+            usleep(1000);
+
+            this->logger(robotStatusWrapping());
+        }
+    }
+
+    void obstacleAvoidance(){
+        srand(time(0));
+        robotMotorInstruction instruction;
+        for (int i = 0; i < 10000; ++i)
+        {
+            if ((this->r->get_lasers()[0].get_dist() < 40.0f) || (this->r->get_lasers()[0].get_dist() == -1)){
+                cout << "Right " << endl;
+                instruction = turnRight();
+            }
+            else if ((this->r->get_lasers()[1].get_dist() < 40.0f) || (this->r->get_lasers()[1].get_dist() == -1)){
+                cout << "Left " << endl;
+                instruction = turnLeft();
+            }
+            else if ((this->r->get_lasers()[2].get_dist() < 40.0f) || (this->r->get_lasers()[2].get_dist() == -1)){
+                cout << "Backword " << endl;
+                instruction = moveBack();
+            }
+            else{
+                cout << "Forward " << endl;
+                instruction = moveFwd();
+            }
+
+            this->m->update(this->r->get_pos());
+            this->d->update();
+            this->r->move(get<0>(instruction), get<1>(instruction), m);
+            usleep(1000);
+
+            this->logger(robotStatusWrapping());
+        }
+    }
+
+    void keyBoardControl(){
+        float move_left = 0.0;
+        float move_right = 0.0;
+        for (int i = 0; i < 10000; ++i)
+        {
+            int numkey;
+            SDL_PumpEvents();
+            keys = SDL_GetKeyState(&numkey);
+
+            if (keys[SDLK_s]) {
+                move_left = 0.0;
+                move_right = 0.0;
+            }
+            else if (keys[SDLK_UP]) {
+                move_left = 1.0;
+                move_right = 1.0;
+            }
+            else if (keys[SDLK_DOWN]) {
+                move_left = -1.0;
+                move_right = -1.0;
+            }
+            else if (keys[SDLK_LEFT]) {
+                move_left = 1.0;
+                move_right = -1.0;
+            }
+            else if (keys[SDLK_RIGHT]) {
+                move_left = -1.0;
+                move_right = 1.0;
+            }
+            else{
+                move_left = 0.0;
+                move_right = 0.0;
+            }
+
+            this->m->update(this->r->get_pos());
+            this->d->update();
+
+            if (this->gameOver() == true){
+                cout << "GAME OVER!!!!!!!!!!!!!!!!!!!!!" << endl;
+            }
+            else{
+                cout << "The game continues ..... " << endl;
+            }
+            //this->r->move(1.0, 1.1, m);
+            this->r->move(move_left, move_right, m);
+        }
+    }
+
+    robotMotorInstruction turnLeft(){
+        robotMotorInstruction robotInstr(0.0f, 1.0f);
+        return robotInstr;
+    }
+
+    robotMotorInstruction turnRight(){
+        robotMotorInstruction robotInstr(1.0f, 0.0f);
+        return robotInstr;
+    }
+
+    robotMotorInstruction moveFwd(){
+        robotMotorInstruction robotInstr(2.0f, 2.0f);
+        return robotInstr;
+    }
+
+    robotMotorInstruction moveBack(){
+        robotMotorInstruction robotInstr(-1.0f, -1.0f);
+        return robotInstr;
+    }
+
+    void logger(robotSensorReadings v1){
+        std::cout << "-----------------------------------------------------------------------" << endl;
+        std::cout << "Laser 0 distance : " << get<0>(v1) << endl;
+        std::cout << "Laser 1 distance : " << get<1>(v1) << endl;
+        std::cout << "Laser 2 distance : " << get<2>(v1) << endl;
+        std::cout << "Left bumper : " << get<3>(v1) << endl;
+        std::cout << "Right bumper : " << get<4>(v1) << endl;
+        std::cout << "Radar reading : " << get<5>(v1) << endl;
+    }
+
+    robotSensorReadings robotStatusWrapping(){
+        robotSensorReadings robotStatus(this->r->get_lasers()[0].get_dist(),
+            this->r->get_lasers()[1].get_dist(),
+            this->r->get_lasers()[2].get_dist(),
+            this->r->get_left_bumper(),
+            this->r->get_left_bumper(),
+            this->r->get_radars()[0].get_inc());
+        return robotStatus;
+    }
+    //This will take the current robot sensor readings, and the robot motor instructions, and will output
+    //robotMovementInstructions avoidObstacle(){
+
+    //}
+
+
+};
+
+
+int main()
+{
+    string mapName("cuisine.pbm");
+    const char *mapNameChar = mapName.c_str();
+    //MyFirstRobot r1(mapNameChar);
+    CollectBall r1(mapNameChar);
+    //r1.standardMovement();
+    //r1.randomMovement();
+    //r1.obstacleAvoidance();
+    r1.keyBoardControl();
+  return 0;
+}

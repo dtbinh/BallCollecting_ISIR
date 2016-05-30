@@ -1,0 +1,21 @@
+TODO list
+*******************
+
+- The end() method inside the CollectBall class, I may need to overwrite it in order to accept different ending scienario (depending on the option)
+-----------------------------------
+
+In general:
+*************
+
+- I must cluster the traces I have, and interpret the clustering results. I expect for example that I for 4 clusters I see a ball, a switch, a basket and a wall representative clusters.
+- For the online learning of the options, there is an issue: Do I update the policy of the option I select only? Or I update the policy of all the options at each
+    time step (in case I am in a legal position that allows me to select these options)?
+- What I want to do now is to take a hard look at "SarsaNN" and "Policy", and see how can I replace the following data structures:
+  - DAction
+  - ActionTemplate
+  - DState
+
+- I need to replace the 'param' class (defined inside sferes2) with another simple structure inside 'sml'
+- I also want to get rid of the 'policy' class. I want everything to be inside SarsaNN
+- I need to combine both options and primitive actions into one container --> or should I? Since I've the correct numbering, and it is all integers, I just need to put the correct
+if conditions.

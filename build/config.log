@@ -1,0 +1,10 @@
+# project  configured on Sun May 29 00:38:24 2016 by
+# waf 1.8.21 (abi 98, python 20706f0 on linux2)
+# using ./waf configure --foo=23
+#
+----------------------------------------
+Setting top to
+/home/osm3000/ISIR/rl_with_options_waf_trials
+----------------------------------------
+Setting out to
+/home/osm3000/ISIR/rl_with_options_waf_trials/build

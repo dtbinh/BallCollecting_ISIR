@@ -1,0 +1,32 @@
+#!/usr/bin/env python
+
+def build(bld):
+# last code generation : RL NN where actions can have multiple timestep and state aren't fixed
+    sferes.create_variants(bld,
+			source	= 'src/RLNNACST.cpp',
+			#includes	= 'includes/ ../../',
+			includes	= './ libfastsim/',
+			# uselib_local	= 'fastsim smile',
+			uselib_local	= 'fastsim smile',
+			uselib 	= 'SDL BOOST_PROGRAM_OPTIONS TBB FANN EIGEN3 BOOST_THREAD',
+			target	= 'RLNNACST',
+			variants 	= [#'VISU',
+			  'NOVISU',
+			  #'NOVISU RANDSTATE',
+			  #'LOADFILE',
+			  'LOADFILE TESTPERF',
+			  #'VALGRIND',
+			  #'LOADFILE TESTPERF VISU',
+			  #'NOVISU RANDACLINEAR',
+			  #'NOVISU RANDACLINEAR VALGRIND',
+			  #'NOVISU RANDACFIXED',
+			  #'VISU RANDACLINEAR',
+			  #'VISU RANDACLINEAR LOADFILE TESTPERF',
+			  #'NOVISU RANDACLINEAR LOADFILE TESTPERF'
+			  ])
+    model = bld.new_task_gen('cxx', 'staticlib')
+    model.source = ' libfastsim/display.cpp libfastsim/laser.cpp libfastsim/main.cpp libfastsim/map.cpp libfastsim/radar.cpp libfastsim/light_sensor.cpp libfastsim/robot.cpp libfastsim/linear_camera.cpp libfastsim/settings.cpp Utils.cpp ActionFactory.cpp StateExtractor.cpp'
+    model.includes = 'libfastsim/ ./'
+    model.target = 'smile'
+    model.uselib = 'SDL BOOST_THREAD BOOST_PROGRAM_OPTIONS BOOST_SYSTEM BOOST_SERIALIZATION BOOST_FILESYSTEM'
+
