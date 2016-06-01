@@ -1,30 +1,17 @@
-#define RLNN
-//only use in CollectBall to active ball_collected function
-#define STORETRACE
+#ifndef VISU
+#define VISU
+#endif
 
-//#define BOLTZMANN
-
-// #define SARSA
-// #define NO_PARALLEL
-
-// #define DYNA
-
-// #define RANDOM
-
-// #define NO_PARALLEL
-
-// #define HUMAN_CONTROL
-
-#define NO_SHAPING
-
-#define ACTION_TIME
-//#define OFFLINE_LEARNING
-
-#include "gamefactory.hpp"
 //#include "run_rl.hpp"
-#include "run_rl2.hpp"
+//#include "run_rl2.hpp"
+#include "collectball2.hpp"
 #include <iostream>
 #include <tuple>
+#include <stdint.h>
+#include <SDL/SDL_keyboard.h>
+#include <SDL.h>
+#include <stdlib.h>     //for using the function sleep
+#include <algorithm>
 
 struct FSTParam {
 
@@ -37,238 +24,9 @@ struct FSTParam {
     static constexpr int strandmax = 109;
 };
 
-
-class RewardCollectBall {
-public:
-    RewardCollectBall(CollectBall* _simu):simu(_simu),
-        begin_carry(ParamGame::max_nb_ball, false),
-        switch_already_pu(false) {
-    }
-
-    ~RewardCollectBall() {
-        if(simu != nullptr)
-            delete simu;
-    }
-
-    CollectBall& operator()() {
-        return *simu;
-    }
-
-    void deleteSimu() {
-        delete simu;
-        simu = nullptr;
-    }
-
-    bool end() {
-        return simu->end();
-    }
-
-private:
-    CollectBall* simu;
-
-public:
-    vector<bool> begin_carry;
-    bool switch_already_pu;
-};
-
-typedef boost::shared_ptr<RewardCollectBall> Simulator;
-
-struct FSTSim {
-
-    static void computeIniInputs(std::vector<double>* inputs, const Simulator& simu, const std::vector<double>& ac) {
-        // Update of the sensors
-        size_t nb_lasers = simu->operator()().robot().get_lasers().size();
-        size_t nb_light_sensors = simu->operator()().robot().get_light_sensors().size();
-
-        int index = 0;
-        // *** set inputs ***
-        for (size_t j = 0; j < nb_lasers; j++)
-        {
-            double d = simu->operator()().robot().get_lasers()[j].get_dist();
-            double range = simu->operator()().robot().get_lasers()[j].get_range();
-            if(d == -1.f || d >= range)
-                inputs->operator[](index++) = 0.f;
-            else
-                inputs->operator[](index++) = (d == -1.f || d >= range ? 0 : 1 - d / range);
-        }
-
-        for (size_t j = 0; j < nb_light_sensors; j+=2)
-        {
-            double actL = (double) simu->operator()().robot().get_light_sensors()[j].get_activated();
-            double actR = (double) simu->operator()().robot().get_light_sensors()[j+1].get_activated();
-            inputs->operator[](index+j) = actL;
-            inputs->operator[](index+j+1) = actR;
-        }
-
-        index += nb_light_sensors;
-
-        inputs->operator[](index+0) = (double) simu->operator()().robot().get_left_bumper();
-        inputs->operator[](index+1) = (double) simu->operator()().robot().get_right_bumper();
-        inputs->operator[](index+2) = (double) simu->operator()().robot_carrying_ball();
-
-        index = index + 3;
-
-        inputs->operator[](index) = (double) !simu->operator()().never_pull_switch();
-        index++;
-
-        for(int i=index; i< index + ac.size(); i++)
-            inputs->operator[](i) = ac.at( i - index );
-    }
-
-//    static void singletonInit() {
-//        GameFactory::getInstance();
-//    }
-
-    static arena_instance_id instanceIteratorBegin() {
-        return {0,0};
-    }
-
-    static int instanceToInt(const arena_instance_id& instance) {
-        return *instance;
-    }
-
-    static bool instanceIteratorEnd(const arena_instance_id& instance) {
-        ParamGame *GameInstance = new ParamGame();
-        bool result = instance <= GameInstance->getEndInstance();
-        delete GameInstance;
-        return result;
-    }
-
-    static Simulator simuInit() {
-        return nullptr;
-    }
-
-    static Simulator simuInitInside(Simulator s, const arena_instance_id& instance) {
-	endInstanceInside(s);
-        GameFactory *GameFactoryInstance = new GameFactory();
-        ParamGame *GameInstance = new ParamGame();
-        CollectBall* simu1 = GameFactoryInstance->create(GameInstance->getArenaKey(instance.map_id), GameInstance->getPositionInstance(instance.position_id));
-        Simulator simulation(new RewardCollectBall(simu1));
-
-        assert(simulation->operator()().well_init());
-#ifdef VISU
-        simulation->operator()().init_view(true);
-#endif
-        simulation->operator()().refresh_robot();
-
-        delete GameFactoryInstance;
-        delete GameInstance;
-
-        return simulation;
-    }
-
-    static void endInstanceInside(Simulator& s) {
-        if(s.get() != nullptr) {
-            s->deleteSimu();
-            s.reset();
-        }
-    }
-
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //ADDED BY OMAR - see more about the robot behaviour
-    //What to see:
-    // - Is the robot near a basket?
-    // - Is the robot near a switch?
-    // - Is the robot near a ball?
-    // - Is the robot carrying a ball?
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    static double computeReward(Simulator& simu, int rewardChoice){
-        /*
-            In order to handle the case of different 'hardcoded' reward functions, I will make a switch case between different
-            reward functions
-            0 : Collect ball and then put it in the basket --> the traditional reward.
-            1 : Collect the ball
-            2 : See the ball
-            3 : See the basket
-            4 : See a switch
-            5 : See a wall - no particular reason at the moment
-        */
-        bool bdrop = false;
-        switch (rewardChoice){
-            case 0:
-                bdrop = simu->operator()().ball_collected();
-                break;
-
-            case 1:
-                bdrop = simu->operator()().robot_carrying_ball();
-                break;
-
-            case 2:{
-                int robot_near_ball_id = simu->operator()().robot_near_ball(); // I think it will return the number of ball it is near to. Otherwise, -1. I can make a boolean version of it
-                    if (robot_near_ball_id != -1)
-                        bdrop = true;
-
-                    break;
-            }
-            case 3:
-                bdrop = simu->operator()().robot_near_basket();
-                break;
-
-            case 4:
-                bdrop = simu->operator()().robot_near_switch();
-                break;
-
-            default:{
-                bdrop = false;
-                break;
-            }
-        }
-
-        if (bdrop == true)
-            return 100;
-        else
-            return 0.0;
-
-    }
-
-    static std::tuple <bool,bool,bool,bool,bool,bool,float> robotWorldStatus (Simulator& simu){
-        int robot_near_ball_id = simu->operator()().robot_near_ball(); // I think it will return the number of ball it is near to. Otherwise, -1. I can make a boolean version of it
-        bool robot_near_ball = false;
-        if (robot_near_ball_id != -1)
-            robot_near_ball = true;
-
-        bool robot_near_switch = simu->operator()().robot_near_switch();
-        bool robot_near_basket = simu->operator()().robot_near_basket();
-        bool robot_carrying_ball = simu->operator()().robot_carrying_ball();
-        bool stuck_too_long = simu->operator()().stuck_too_long();
-        bool never_pull_switch = simu->operator()().never_pull_switch();
-        float robot_distance_basket = simu->operator()().robot_distance_basket();
-
-        return std::make_tuple(robot_near_ball, robot_near_switch, robot_near_basket, robot_carrying_ball, stuck_too_long, never_pull_switch, robot_distance_basket);
-    }
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-    static void step_simu(Simulator& simu, const std::vector<double>& outputs) {
-        simu->operator()().step(sml::Utils::transform(outputs[0], 0.f, 1.f, -ParamGame::motor_power, ParamGame::motor_power),
-                                sml::Utils::transform(outputs[1], 0.f, 1.f, -ParamGame::motor_power, ParamGame::motor_power),
-                                outputs[2] >= 0.5f);
-
-        simu->operator()().refresh();
-#ifdef VISU
-        simu->operator()().refresh_view();
-#endif
-    }
-
-    static double simu_perf(Simulator& simu) {
-        return simu->operator()().number_collected_balls();
-    }
-
-    static int simu_max_episode() {
-        return ParamGame::step_limit;
-    }
-
-//    static void endInstance(Simulator&) {
-//
-//    }
-
-};
-
-
+/*
 int main(int argc, char **argv)
 {
-
-//     static tbb::task_scheduler_init init(32);
 
     //define program options
     namespace po = boost::program_options;
@@ -316,14 +74,13 @@ int main(int argc, char **argv)
     GameInstance->injectArgs(vm["map"].as<std::vector<std::string>>(), vm["instances"].as<std::vector<unsigned int>>());
 
     //run --original, by Matthieu
-    /*
     RL_run<FSTParam, FSTSim, Simulator, arena_instance_id> runner;
 
     runner.run(argc, argv, desc);
 
     GameFactory::endInstance();
     ParamGame::endInstance();
-    */
+    
 
     // Trial by Omar in order to have manual control over the simulator.
     RL_run2<FSTParam, FSTSim, Simulator, arena_instance_id> runner(0, 0, false, 0);
@@ -331,3 +88,83 @@ int main(int argc, char **argv)
     runner.runAllSteps();
 }
 
+*/
+
+// Testing the collectball task with SDL keyboard actions
+int main (){
+    cout << "koko wawa" << endl;
+    string mapName("b_a2_c2.pbm");
+    const char *mapNameChar = mapName.c_str();
+
+    CollectBall mycollector;
+    cout << "Object established" << endl;
+    mycollector.simuInitInside(0, mapNameChar);
+    cout << "simuInitInside established" << endl;
+
+    double move_left = 0.0;
+    double move_right = 0.0;
+    vector <double> movement(2);
+    Uint8* keys;
+    vector <int> goalsAchieved;
+    for (long long int i = 0; i < 10000000; ++i)
+    {
+        cout << "Step number = " << i << endl;
+        int numkey;
+        SDL_PumpEvents();
+        keys = SDL_GetKeyState(&numkey);
+        // cout << "Keys readings are there : " << keys << endl;
+
+        if (keys[SDLK_s]) {
+            move_left = 0.0;
+            move_right = 0.0;
+        }
+        else if (keys[SDLK_UP]) {
+            // move_left = 1.0;
+            // move_right = 1.0;
+            move_left = 0.2;
+            move_right = 0.2;
+        }
+        else if (keys[SDLK_DOWN]) {
+            // move_left = -1.0;
+            // move_right = -1.0;
+            move_left = -0.2;
+            move_right = -0.2;
+        }
+        else if (keys[SDLK_LEFT]) {
+            // move_left = 1.0;
+            // move_right = -1.0;
+            move_left = 0.2;
+            move_right = -0.2;   
+        }
+        else if (keys[SDLK_RIGHT]) {
+            // move_left = -1.0;
+            // move_right = 1.0;
+            move_left = -0.2;
+            move_right = 0.2;
+        }
+        else{
+            move_left = 0.0;
+            move_right = 0.0;
+        }
+        // cout << "If condition is done" << endl;
+
+        movement[0] = move_left;
+        movement[1] = move_right;
+        mycollector.step_simu(movement);
+
+        // cout << "simulator steps has been taken" << endl;
+        for (int x = 0; x < 5; x++){
+            double reward = mycollector.computeReward(x);
+            if (reward == 100.0){
+                if (std::find (goalsAchieved.begin(), goalsAchieved.end(), 30) == goalsAchieved.end())
+                    goalsAchieved.push_back(x);
+            }
+        }
+        cout << "----------------------------" << endl;
+    }
+
+    for (auto &item: goalsAchieved)
+        cout << "Reward No." << item << " , has been achieved" << endl;
+
+    return 0;
+}
