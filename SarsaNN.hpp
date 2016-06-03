@@ -11,12 +11,14 @@
 #include <boost/graph/graph_concepts.hpp>
 
 #include <iostream>
-
+#include <string>
 #include <sstream> // Added by Omar in order to make more robust logging!
 
 #define MAX_REPLAY_FOR_ON_TRAJECTORY 20
 
 using std::pair;
+using namespace std;
+
 
 namespace sml {
 
@@ -106,7 +108,7 @@ public:
         internal_step = 0;
     }
 
-    void endEpisode(double rr, int instance) {
+    void endEpisode(double rr) {
         #ifdef TESTPERF
         std::cout << q_max.str() << std::endl;
         std::cout << q_avg.str() << std::endl;
@@ -240,9 +242,6 @@ protected:
 
         for(int i=0; i < size_input_state ; i++)
             inputs[i] = state->at(i);
-
-        //ParallelComputeQa para(Qa, neural_networks, inputs);
-        //tbb::parallel_for (tbb::blocked_range<int>(0, num_actions_options), para);
 
         //Let's run all the NN here in series, not in parallel
         for (int NN_num = 0; NN_num < this->num_actions_options ; NN_num){

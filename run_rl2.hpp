@@ -18,6 +18,7 @@
 #include <iostream>
 #include <iomanip>
 #include <boost/program_options.hpp>
+#include <boost/scoped_ptr.hpp>
 
 #include "SarsaNN.hpp" // This is temporarily, for testing purpose
 #include "ActionFactory.hpp"
@@ -28,6 +29,7 @@
 
 #include <sstream> // Added by Omar in order to make more robust logging!
 #include <tuple>
+//#include "collectball2.hpp"
 
 typedef boost::shared_ptr<vector<double>> EnvState;
 
@@ -54,7 +56,7 @@ struct RLAllParam {
     }
 };
 
-template <typename SimuParam, typename Simulator, typename Environnement, typename InstanceIterator>
+template <class SimuParam>
 class RL_run2 {
 public:
     static constexpr int nb_max_inputs_on_time = SimuParam::sensor_size + SimuParam::nb_motors;
@@ -77,26 +79,30 @@ public:
       list<int> personal_best_step_sum;
     };
 
-    RL_run2(int RewardNumber, int FinalGoal, bool UseOptions, int NumOptions){
+    RL_run2(int RewardNumber, int FinalGoal, bool UseOptions, int NumOptions, CollectBall *Simulator){
         this->RewardNumber = RewardNumber;
         this->FinalGoal = FinalGoal;
-        this->ActionFactoryInstance = new ActionFactory(3); // 3 is the number of motors
+        this->ActionFactoryInstance = new ActionFactory(2); // 2 is the number of motors
         this->nb_options = NumOptions;
         this->optionsUsed = UseOptions; // This variable will decide if opt
+        this->Simulator = Simulator;
     }
 
+
+
     ~RL_run2(){
-        delete ActionFactoryInstance;
+        delete this->ActionFactoryInstance;
     }
 
     void initializeEnvironment(int argc, char **argv,
-             const boost::program_options::options_description& add_opts = boost::program_options::options_description()){
+        const boost::program_options::options_description& add_opts = boost::program_options::options_description()){
         /********************************************************************************************
             Read the configuration file - get the RL parameters
             +
             Load the relevant information (states, actions, map,..etc).
         ********************************************************************************************/
         boost::property_tree::ptree pt;
+        rlparam.history_length_max = 1; // TODO: I need to build the mechanisims to have deeper history. 1 means only the present state.
         boost::property_tree::ini_parser::read_ini("configRL.ini", pt);
         rlparam.starting_epsilon = pt.get<double>("reinforcement_learning.starting_epsilon");
         rlparam.ending_epsilon = pt.get<double>("reinforcement_learning.ending_epsilon");
@@ -165,11 +171,11 @@ public:
         /********************************************************************************************
             Get the primitive actions from the file
         ********************************************************************************************/
-        this->primitive_actions = ActionFactoryInstance->read(vm["actions"].as<std::string>());
-        this->nb_primitive_actions = ActionFactoryInstance->getActionsNumber();
+        this->primitive_actions = this->ActionFactoryInstance->read(vm["actions"].as<std::string>());
+        this->nb_primitive_actions = this->ActionFactoryInstance->getActionsNumber();
 
         for (int i = 0; i < this->nb_primitive_actions ; i++) // Note that this is for primitive actions only at the moment
-          actions_time.push_back(this->primitive_actions[i].temporal_extension);
+          actions_time.push_back(this->primitive_actions.at(i).at(0).at(2));
 
         // I must add here a for loop to get the max timing for options
         // if (this->optionsUsed == true)
@@ -179,112 +185,107 @@ public:
             Build the policy function (with value function approximator inside)
         ********************************************************************************************/
         if (this->optionsUsed == true)
-          this->algo = new sml::SarsaNN<EnvState> (this->nb_options + this->nb_primitive_actions, rlparam.DefaultParam, this->stx->getNumberInput(), this->actions_time);
+          this->algo = new sml::SarsaNN<EnvState>(this->nb_options + this->nb_primitive_actions, rlparam.DefaultParam, this->stx->getNumberInput(), this->actions_time);
         else
-          this->algo = new sml::SarsaNN<EnvState> (this->nb_primitive_actions, rlparam.DefaultParam, this->stx->getNumberInput(), this->actions_time);
+          this->algo = new sml::SarsaNN<EnvState>(this->nb_primitive_actions, rlparam.DefaultParam, this->stx->getNumberInput(), this->actions_time);
         #ifdef LOADFILE
           this->algo->read(loading_file);
         #endif
 
-        /********************************************************************************************
-          Get an instance of the environment simulator
-        ********************************************************************************************/
-        this->simu = Simulator::simuInit();
+        
         // At the end of all this processing, you will have:
         // - list_tlaction this->primitive_actions --> list of primitive actions
         // - this->algo --> your SARSA policy
         // nb_primitive_actions --> number of primitive actions
-        // this->simu --> A nullptr instance of the simulator
     }
 
     void runOneTimeStep(int timedecision){
-        /*
-            This will progress the simulator by one time step only
-        */
+      /*
+          This will progress the simulator by one time step only
+      */
     }
 
     void runOneEpisode(int episode){
-      /*
+        /*
           This will progress the simulator for an entire episode
-      */
-      this->cball = 0;
-      this->reward_sum = 0;
-      this->step_sum = 0;
+        */
+        this->cball = 0;
+        this->reward_sum = 0;
+        this->step_sum = 0;
 
-      //This is the decay in the epsilon with time (less exploration with time)
-      this->algo->getParams().epsilon =  (rlparam.starting_epsilon - rlparam.ending_epsilon)*pow(rlparam.stepness_epsilon, 1+episode) + rlparam.ending_epsilon;
+        //This is the decay in the epsilon with time (less exploration with time)
+        this->algo->getParams().epsilon =  (rlparam.starting_epsilon - rlparam.ending_epsilon)*pow(rlparam.stepness_epsilon, 1+episode) + rlparam.ending_epsilon;
 
-      #if defined(LOADFILE) && ! defined(TESTPERF)
-      algo->getParams().epsilon =  rlparam.ending_epsilon;
-      #endif
+        #if defined(LOADFILE) && ! defined(TESTPERF)
+        algo->getParams().epsilon =  rlparam.ending_epsilon;
+        #endif
 
-      this->simu = Simulator::simuInitInside(this->simu, instance);
+        int ac = 0; // This is the index of the current action
+        ////////
+        std::vector<double> motor_init(SimuParam::nb_motors, 0.5);
+        std::vector<double>* tmp_inp_ini = new vector<double>(rlparam.nbInputsTotal(nb_max_inputs_on_time));
+        this->Simulator->computeIniInputs(tmp_inp_ini, motor_init);
 
-      int ac = 0; // This is the index of the current action
-      ////////
-      std::vector<double> motor_init(SimuParam::nb_motors, 0.5);
-      std::vector<double>* tmp_inp_ini = new vector<double>(rlparam.nbInputsTotal(nb_max_inputs_on_time));
-      Simulator::computeIniInputs(tmp_inp_ini, simu, motor_init);
+        for(int i=nb_max_inputs_on_time; i < tmp_inp_ini->size(); i++)
+            tmp_inp_ini->operator[](i) = tmp_inp_ini->at(i % nb_max_inputs_on_time);
 
-      for(int i=nb_max_inputs_on_time; i < tmp_inp_ini->size(); i++)
-          tmp_inp_ini->operator[](i) = tmp_inp_ini->at(i % nb_max_inputs_on_time);
+        boost::shared_ptr< std::vector<double> > complete_input(tmp_inp_ini);
+        boost::shared_ptr< std::vector<double> > _inputs(this->stx->parse(*complete_input));
 
-      boost::shared_ptr< std::vector<double> > complete_input(tmp_inp_ini);
-      boost::shared_ptr< std::vector<double> > _inputs(this->stx->parse(*complete_input));
+        this->algo->startEpisode(_inputs, ac);
 
-      this->algo->startEpisode(_inputs, ac);
+        this->reward = this->Simulator->computeReward(this->RewardNumber); //This is the number of balls collected. It is in RLNNACST
+        this->rreward = 0;
+        this->powgamma = 1.0d;
+        int step;
+        for (step = 0; true; ){
+            _inputs.reset(this->stx->parse(*complete_input));
+            #ifndef TESTPERF
+            ac = algo->learn(_inputs, reward, this->Simulator->end(this->FinalGoal)); // The end here should take a parameter in the future, indicating the end condition
+            #else //TESTPERF
+            ac = algo->decision(_inputs, true);
+            #endif
 
-      this->reward = Simulator::computeReward(this->simu, this->RewardNumber); //This is the number of balls collected. It is in RLNNACST
-      this->rreward = 0;
-      this->powgamma = 1.d;
-      int step;
-      for (step = 0; true; ){
-          _inputs.reset(this->stx->parse(*complete_input));
-          #ifndef TESTPERF
-          ac = algo->learn(_inputs, reward, simu->end()); // The end here should take a parameter in the future, indicating the end condition
-          #else //TESTPERF
-          ac = algo->decision(_inputs, true);
-          #endif
+            if(this->Simulator->end(this->FinalGoal) || step >= this->Simulator->step_limit)
+                break;
 
-          if(simu->end() || step >= Simulator::simu_max_episode())
-              break;
+            int timestep_decision = 0;
+            if (ac < this->nb_primitive_actions){ // This means we selected a primitve action
+                // 0 is the first motor command. We have two motor actions. All motor commands of the same action have the same temporal value
+                //timestep_decision = this->primitive_actions.at(ac).at(0).at(2);
+                timestep_decision = this->actions_time.at(ac);
+            }
+            else{ // This means we selected an option, so I need its correct timing (this will be the max time allowed for an option)
 
-          int timestep_decision = 0;
-          if (ac < this->nb_primitive_actions){ // This means we selected a primitve action
-              timestep_decision = this->primitive_actions.at(ac).temporal_extension;
-          }
-          else{ // This means we selected an option, so I need its correct timing (this will be the max time allowed for an option)
+            }
+            this->reward = 0;
 
-          }
-          this->reward = 0;
+            for(int timestep=0; timestep < timestep_decision; timestep ++) {
 
-          for(int timestep=0; timestep < timestep_decision; timestep ++) {
+                boost::scoped_ptr< std::vector<double> > outputs(this->ActionFactoryInstance->computeOutputs(ac, timestep, primitive_actions)); //This should deal with primitive actions only
+                this->Simulator->step_simu(*outputs);
+                double lreward = this->Simulator->computeReward(this->RewardNumber);
+                this->reward += lreward * pow(rlparam.DefaultParam.gamma, timestep);
+                this->rreward += lreward * powgamma;
+                this->powgamma *= rlparam.DefaultParam.gamma;
 
-              boost::scoped_ptr< std::vector<double> > outputs(ActionFactory::computeOutputs(ac, timestep, primitive_actions)); //This should deal with primitive actions only
-              Simulator::step_simu(this->simu, *outputs);
-              double lreward = Simulator::computeReward(this->simu, this->RewardNumber);
-              this->reward += lreward * pow(rlparam.DefaultParam.gamma, timestep);
-              this->rreward += lreward * powgamma;
-              this->powgamma *= rlparam.DefaultParam.gamma;
+                if(this->Simulator->end(this->FinalGoal)){ //In the end() here, I must give it the condition number (for the options sake)
+                    timestep_decision = timestep + 1;
+                    break;
+                }
+            }
+            step += timestep_decision;
+        }
+        step_sum += step;
 
-              if(simu->end()){ //In the end() here, I must give it the condition number (for the options sake)
-                  timestep_decision = timestep + 1;
-                  break;
-              }
-          }
-          step += timestep_decision;
-      }
-      step_sum += step;
-
-      cball += Simulator::simu_perf(simu);
-      this->algo->endEpisode(rreward, Simulator::instanceToInt(instance)); //TODO: I need to add the instance to the code.
+        cball += this->Simulator->simu_perf(); // I am not sure if this is of concern when building the options
+        this->algo->endEpisode(rreward); //TODO: I need to add the instance to the code. --> ???
     }
 
     void runAllSteps(){
         /*
             This will run the simulator till either the time budget expires, or the finalGoal condition is satisfied.
         */
-        this->instance = Simulator::instanceIteratorBegin(); // since this is only one instance
         for(int episode=0; episode < rlparam.max_episod; episode++) {
           this->runOneEpisode(episode);
           this->avg.score.push_back(cball);
@@ -310,8 +311,6 @@ private:
     sml::ActionFactory *ActionFactoryInstance;
     vector<int> actions_time;
     sml::SarsaNN<EnvState> *algo;
-    Environnement simu;
-    InstanceIterator instance;
 
     // These variables are more related to the learning process itself.
     double reward;
@@ -323,4 +322,5 @@ private:
     double cball;
     double reward_sum;
     int step_sum;
+    CollectBall *Simulator;
 };

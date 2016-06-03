@@ -7,6 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <exception>
+#include <assert.h>
 
 namespace sml {
 
@@ -27,23 +28,23 @@ void split(const std::string &s, char delim, std::vector<double> &elems) {
     //return elems;
 }
 
-class actionExtractor{
+class ActionFactory{
 public:
-    actionExtractor(int motors_num){
-        this->motors_num = motors_num;
+    ActionFactory(int nb_motors){
+        this->nb_motors = nb_motors;
     };
-    ~actionExtractor(){};
+    ~ActionFactory(){};
     //vector <double> read (string filename){
     totalActionList read (string filename){
         ifstream inputFile(filename);
-        //assert(inputFile.good());
+        assert(inputFile.good());
 
         std::string fileLine;
         int lineNum = 1;
         while (std::getline(inputFile, fileLine)) {
             split (fileLine, ' ', this->oneMotorCmd);
 
-            if (lineNum % this->motors_num != 0){
+            if (lineNum % this->nb_motors != 0){
                 this->oneCompleteAction.push_back(this->oneMotorCmd);
             }
             else{
@@ -68,7 +69,7 @@ public:
         return allActions.size();
     }
 
-    void save (string filename, vector< vector<double> > actionList){
+    void save (string filename, totalActionList actionList){
         ofstream outputFile(filename);
         for (auto &action: actionList){
             for (auto &motor: action){
@@ -85,16 +86,16 @@ public:
     // This function compute the value of the action at a given timestep.
     const singleAction& action = actionsList.at(ac_id);
 
-    std::vector<double>* outputs = new std::vector<double>(nb_motors, 0.5);
+    std::vector<double>* outputs = new std::vector<double>(this->nb_motors, 0.5);
 
-    for(int motor=0; motor < this -> motors_num; motor++)
+    for(int motor=0; motor < this->nb_motors; motor++)
         outputs->operator[](motor) = action[motor][0] * timestep + action[motor][1];
 
     return outputs;
 }
 
 private:
-    int motors_num;
+    int nb_motors;
     singleMotorCommand oneMotorCmd;
     singleAction oneCompleteAction;
     totalActionList allActions;

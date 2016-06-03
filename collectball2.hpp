@@ -172,7 +172,7 @@ public:
             2 : See the ball
             3 : See the basket
             4 : See a switch
-            5 : All the tasks of the ball collecting task has been done
+            5 : All the tasks of the ball collecting task has been done --> I don't think this is useful as a reward function (but good for an end condition)
         */
         bool bdrop = false;
         switch (rewardChoice){
@@ -215,8 +215,42 @@ public:
 
     }
 
-    bool end(){
-        return !_never_pull_switch && _carrying_ball == -1 && _active_balls.size() == 0;
+    bool end(int FinalGoal){
+        //return !_never_pull_switch && _carrying_ball == -1 && _active_balls.size() == 0; // This is the normal end for collectball task
+        bool bdrop;
+        switch (FinalGoal){
+            case 0:
+                bdrop = this->ball_collected();
+                break;
+
+            case 1:
+                bdrop = this->robot_carrying_ball();
+                break;
+
+            case 2:{
+                if (this->robot_near_ball() != -1)
+                    bdrop = true;
+                break;
+            }
+            case 3:
+                bdrop = this->robot_near_basket();
+                break;
+
+            case 4:
+                bdrop = this->robot_near_switch();
+                break;
+
+            case 5:
+                bdrop = (!_never_pull_switch && _carrying_ball == -1 && _active_balls.size() == 0);
+                break;
+
+            default:{
+                bdrop = false;
+                break;
+            }
+        }
+
+        return bdrop;
     }
     int simu_perf() {
 
@@ -285,10 +319,6 @@ public:
         #ifdef VISU
         this->d->update();
         #endif
-
-        if (this->end()){
-            cout << "GAME OVER DUDE!" << endl;
-        }
     }
 
     bool robot_carrying_ball() const {

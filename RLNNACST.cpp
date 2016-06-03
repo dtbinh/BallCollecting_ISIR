@@ -3,8 +3,9 @@
 #endif
 
 //#include "run_rl.hpp"
-//#include "run_rl2.hpp"
 #include "collectball2.hpp"
+#include "run_rl2.hpp"
+#include <boost/program_options.hpp>
 #include <iostream>
 #include <tuple>
 #include <stdint.h>
@@ -14,17 +15,16 @@
 #include <algorithm>
 
 struct FSTParam {
+    static constexpr size_t nb_motors       = 2;
 
-    static constexpr size_t nb_motors       = 3;
-
-//					wall    bal  bas   sw    bump  car  swa
+//                  wall    bal  bas   sw    bump  car  swa
     static constexpr int sensor_size = 3 +   2  +  2  +  2  +  2  +  1 + 1;
 
     static constexpr int strandmin = 52;
     static constexpr int strandmax = 109;
 };
 
-/*
+
 int main(int argc, char **argv)
 {
 
@@ -32,8 +32,8 @@ int main(int argc, char **argv)
     namespace po = boost::program_options;
     po::options_description desc("Allowed RL FST options");
     desc.add_options()
-    ("map", po::value<std::vector<std::string>>()->multitoken(), "set arena maps for evolution")
-    ("instances", po::value<std::vector<unsigned int>>()->multitoken(), "set instances of position on the map");
+    ("map", po::value<std::string>()->multitoken(), "set arena maps for evolution")
+    ("instances", po::value<unsigned int>()->multitoken(), "set instances of position on the map");
 
     po::variables_map vm;
     po::parsed_options parsed = po::command_line_parser(argc, argv).options(desc).allow_unregistered().run();
@@ -43,8 +43,7 @@ int main(int argc, char **argv)
 
     if (vm.count("map")) {
         std::cout << "Arena map was set to {";
-        for(string i : vm["map"].as<std::vector<string>>() )
-            std::cout << i << ", ";
+        std::cout << vm["map"].as<string>() << ", ";
         std::cout <<"} "  << std::endl;
     } else {
         std::cout << "Arena maps was not set." << std::endl;
@@ -53,52 +52,36 @@ int main(int argc, char **argv)
 
     if(vm.count("instances")) {
         std::cout << "Arena instances was set to {";
-        for(unsigned int i : vm["instances"].as<std::vector<unsigned int>>() )
-            std::cout << i << ", ";
-
+        std::cout << vm["instances"].as<unsigned int>() << ", ";
         std::cout <<"} "  << std::endl;
     } else {
         std::cout << "Arena instances position was not set." << std::endl;
         return 1;
     }
 
-    for(string i : vm["map"].as<std::vector<string>>() )
-        LOG_FILE("config", "maps " << i);
+    string mapName("b_a2_c2.pbm");
+    //string mapName(vm["map"].as<string>()); //--> This is the good one. The prev one is for testing only
+    const char *mapNameChar = mapName.c_str();
 
-    for(unsigned int i : vm["instances"].as<std::vector<unsigned int>>() )
-        LOG_FILE("config", "instances " << i);
-
-
-    ParamGame *GameInstance = new ParamGame();
-
-    GameInstance->injectArgs(vm["map"].as<std::vector<std::string>>(), vm["instances"].as<std::vector<unsigned int>>());
-
-    //run --original, by Matthieu
-    RL_run<FSTParam, FSTSim, Simulator, arena_instance_id> runner;
-
-    runner.run(argc, argv, desc);
-
-    GameFactory::endInstance();
-    ParamGame::endInstance();
-    
+    CollectBall *collect_ball_simu;
+    collect_ball_simu->simuInitInside(vm["instances"].as<unsigned int>(), mapNameChar);
 
     // Trial by Omar in order to have manual control over the simulator.
-    RL_run2<FSTParam, FSTSim, Simulator, arena_instance_id> runner(0, 0, false, 0);
+    RL_run2<FSTParam> runner(0, 0, false, 0, collect_ball_simu);
     runner.initializeEnvironment(argc, argv, desc);
     runner.runAllSteps();
+
+    return 0;
 }
 
-*/
-
 // Testing the collectball task with SDL keyboard actions
-int main (){
-    cout << "koko wawa" << endl;
+/*int main (){
     string mapName("b_a2_c2.pbm");
     const char *mapNameChar = mapName.c_str();
 
-    CollectBall mycollector;
+    CollectBall collect_ball_simu;
     cout << "Object established" << endl;
-    mycollector.simuInitInside(0, mapNameChar);
+    collect_ball_simu.simuInitInside(0, mapNameChar);
     cout << "simuInitInside established" << endl;
 
     double move_left = 0.0;
@@ -150,11 +133,11 @@ int main (){
 
         movement[0] = move_left;
         movement[1] = move_right;
-        mycollector.step_simu(movement);
+        collect_ball_simu.step_simu(movement);
 
         // cout << "simulator steps has been taken" << endl;
         for (int x = 0; x < 5; x++){
-            double reward = mycollector.computeReward(x);
+            double reward = collect_ball_simu.computeReward(x);
             if (reward == 100.0){
                 if (std::find (goalsAchieved.begin(), goalsAchieved.end(), 30) == goalsAchieved.end())
                     goalsAchieved.push_back(x);
@@ -167,4 +150,4 @@ int main (){
         cout << "Reward No." << item << " , has been achieved" << endl;
 
     return 0;
-}
+}*/

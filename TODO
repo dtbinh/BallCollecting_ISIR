@@ -19,3 +19,11 @@ In general:
 - I also want to get rid of the 'policy' class. I want everything to be inside SarsaNN
 - I need to combine both options and primitive actions into one container --> or should I? Since I've the correct numbering, and it is all integers, I just need to put the correct
 if conditions.
+- What are the inputs I need for the RL_run2 class:
+	-- FIXED: game playground
+	-- FIXED: 
+	-- Instance of the game simulator
+	-- Reward function number --> choose which reward you can get here
+	-- 
+
+- Till now, all of this is based on 'no history'. I need to add the history later
