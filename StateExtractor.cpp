@@ -6,6 +6,8 @@
 #include <algorithm>
 #include "Logger.hpp"
 
+using namespace std;
+
 class malformedfile : public std::exception {
     virtual const char* what() const throw()
     {
@@ -77,6 +79,8 @@ std::vector<double>* StateExtractor::parse(const std::vector<double>& input) con
     //std::cout << "getNumberInput = " << getNumberInput() << std::endl;
 
     std::vector<double>* output = new std::vector<double>(getNumberInput());
+
+    // cout << "Parsing inputs -- input size : " << input.size() << " , number of inputs : " << this->getNumberInput() << endl;
 
     int index_output=0;
     //std::cout << "inputs = ";

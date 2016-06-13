@@ -1,6 +1,6 @@
-#ifndef VISU
-#define VISU
-#endif
+// #ifndef VISU
+// #define VISU
+// #endif
 
 #include <iostream>
 #include <stdlib.h>     /* srand, rand */
@@ -27,6 +27,7 @@
 #include "Utils.hpp"
 #include <boost/shared_ptr.hpp>
 
+#include <string>
 
 using namespace std;
 using namespace fastsim;
@@ -62,13 +63,15 @@ public:
     CollectBall (){
     };
 
-    void setMap (const char *mapFileName){
-        this->m = boost::shared_ptr<Map>(new Map(mapFileName, this->env_size));
+    //void setMap (const char *mapFileName){
+    void setMap (const string &mapFileName){
+        const char *mapNameChar = mapFileName.c_str();
+        this->m = boost::shared_ptr<Map>(new Map(mapNameChar, this->env_size));
     };
 
     void add_robot_position (int id_point) {
         const pair<float, float>& pos = this->get_predefined_points(id_point);  
-        cout << "robot pos : " << pos.first << " , " << pos.second << endl;
+        // cout << "robot pos : " << pos.first << " , " << pos.second << endl;
         //this->robot->set_pos(fastsim::Posture(pos.first, pos.second, 0.1));
         this->robot = new Robot(20.0f, Posture(pos.first, pos.second, 0.1));
     };
@@ -217,7 +220,7 @@ public:
 
     bool end(int FinalGoal){
         //return !_never_pull_switch && _carrying_ball == -1 && _active_balls.size() == 0; // This is the normal end for collectball task
-        bool bdrop;
+        bool bdrop = false;
         switch (FinalGoal){
             case 0:
                 bdrop = this->ball_collected();
@@ -282,12 +285,12 @@ public:
         */
         // cout << "Inside step function, part 1 " << endl;
 
-        cout << "robot_carrying_ball() = " << robot_carrying_ball() << endl;
-        cout << "robot_near_basket() = " << robot_near_basket() << endl;
-        cout << "robot_near_ball() = " << robot_near_ball() << endl;
-        cout << "robot_near_switch() = " << robot_near_switch() << endl;
-        cout << "_number_ball_in_basket = " << this->_number_ball_in_basket << endl;
-        cout << "this->_never_pull_switch = " << this->_never_pull_switch << endl;
+        // cout << "robot_carrying_ball() = " << robot_carrying_ball() << endl;
+        // cout << "robot_near_basket() = " << robot_near_basket() << endl;
+        // cout << "robot_near_ball() = " << robot_near_ball() << endl;
+        // cout << "robot_near_switch() = " << robot_near_switch() << endl;
+        // cout << "_number_ball_in_basket = " << this->_number_ball_in_basket << endl;
+        // cout << "this->_never_pull_switch = " << this->_never_pull_switch << endl;
         
         if(!this->robot_carrying_ball()) {
             // cout << "Condition 1" << endl;
@@ -380,6 +383,7 @@ public:
             So, the resulting vector, 'inputs', will be (sensory inputs + action)
         */
         // Update of the sensors
+        // cout << "---------------- Inside computeIniInputs" << endl;
         size_t nb_lasers = this->robot->get_lasers().size();
         size_t nb_light_sensors = this->robot->get_light_sensors().size();
 
@@ -414,15 +418,18 @@ public:
         inputs->operator[](index) = (double) !this->never_pull_switch();
         index++;
 
-        for(int i=index; i< index + ac.size(); i++)
+        for(uint i=index; i< index + ac.size(); i++)
             inputs->operator[](i) = ac.at( i - index );
+
+        // cout << "---------------- Done with computeIniInputs, with vector size : " << inputs->size() << endl;
     }
 
     bool never_pull_switch(){
         return _never_pull_switch;
     }
 
-    void simuInitInside(int instance_num, const char *mapFileName) {
+    // void simuInitInside(int instance_num, const char *mapFileName) {
+    void simuInitInside(int instance_num, const string &mapFileName) {
         /*
         This function will build the collectball experiment (adding the robots, the switch, the hidden and the active balls,..etc)
         - Build instances
@@ -437,17 +444,18 @@ public:
         this->ball_number = 0;
         this->build_instances();
         this->build_predifined_positions();
-        cout << "simuInitInside - variables initialized " << endl;
+        //cout << "simuInitInside - variables initialized " << endl;
         this->build_instances();
         this->build_predifined_positions();
-        cout << "simuInitInside - instances initialized " << endl;
+        // cout << "simuInitInside - instances initialized " << endl;
+        //this->setMap(mapFileName);
         this->setMap(mapFileName);
-        cout << "simuInitInside - map initialized " << endl;
+        // cout << "simuInitInside - map initialized " << endl;
         //for(auto item: this->instances[instance_num]) {
         this->add_robot_position(this->instances[instance_num].find('I')->second);
         for(std::multimap<char, int>::const_iterator it = this->instances[instance_num].begin(); it != this->instances[instance_num].end(); it ++) {
-            cout << "item.first " << it->first << endl;
-            cout << "item.second " << it->second << endl;
+            // cout << "item.first " << it->first << endl;
+            // cout << "item.second " << it->second << endl;
             switch (it->first) {
                 case 'B':
                     this->add_balls(it->second);
@@ -467,10 +475,10 @@ public:
                     std::cout << "ignore " << it->first << " while parsing map position" << std::endl;
                 }
         }
-        cout << "this->ball_number = " << this->ball_number << endl;
-        cout << "this->max_nb_ball = " << this->max_nb_ball << endl;
+        // cout << "this->ball_number = " << this->ball_number << endl;
+        // cout << "this->max_nb_ball = " << this->max_nb_ball << endl;
 
-        cout << "simuInitInside - instance built " << endl;
+        // cout << "simuInitInside - instance built " << endl;
 
         assert(this->ball_number == this->max_nb_ball);
         this->getCurrentBalls();
@@ -479,6 +487,7 @@ public:
         // Display the screen
         this->d = new Display(this->m, *this->robot);
         #endif
+        // cout << "simuInitInside is done :-) " << endl;
     }
 
     void build_instances(){
@@ -491,27 +500,9 @@ public:
         // S - Switch
         // O - offline ball (need switch)
 
-        // std::map<int, std::multimap<char, int>> my_instances = {
-        //     //instance 0
-        //     {   0, {
-        //             {'I', 0}, {'G', 12}, {'B', 4}, {'B', 7}, {'S', 14}, {'O', 1}, {'O', 10}
-        //         }
-        //     },
-        //     //instance 1
-        //     {   1, {
-        //             {'I', 15}, {'G', 12}, {'B', 4}, {'B', 7}, {'S', 14}, {'O', 1}, {'O', 10}
-        //         }
-        //     },
-        //     //instance 2
-        //     {   2, {
-        //             {'I', 6}, {'G', 10}, {'B', 3}, {'B', 13}, {'S', 1}, {'O', 2}, {'O', 7}
-        //         }
-        //     }
-        // };
         this->instances[0] = {{'I', 0}, {'G', 12}, {'B', 4}, {'B', 7}, {'S', 14}, {'O', 1}, {'O', 10}};
         this->instances[1] = {{'I', 15}, {'G', 12}, {'B', 4}, {'B', 7}, {'S', 14}, {'O', 1}, {'O', 10}};
         this->instances[2] = {{'I', 6}, {'G', 10}, {'B', 3}, {'B', 13}, {'S', 1}, {'O', 2}, {'O', 7}};
-        // this->instances = my_instances;
     }
 
     const pair<float, float>& get_predefined_points(unsigned int i) const {

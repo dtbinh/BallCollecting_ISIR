@@ -79,13 +79,13 @@ unsigned int Utils::boltzmann(const vector<double> & values, double temperature)
 		max_component = values[i]/temperature;
 
     double sum = 0.;
-    for(int i=0; i<values.size(); i++) {
+    for(uint i=0; i<values.size(); i++) {
         rexp[i] = std::exp((values[i]/temperature) - max_component );
         sum += rexp[i];
     }
 
     double last_prob = 0.;
-    for(int i=0; i<values.size(); i++) {
+    for(uint i=0; i<values.size(); i++) {
         rproba[i] = rexp[i]/sum;
         proba[i]= last_prob + rproba[i];
         last_prob = proba[i];

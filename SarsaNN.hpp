@@ -84,7 +84,7 @@ public:
             fann_set_learning_rate(neural_networks[i], this->param.alpha);
         }
 
-        LOG_DEBUG(weight_sum());
+        //LOG_DEBUG(weight_sum());
     }
 
     ~SarsaNN() {
@@ -234,6 +234,12 @@ public:
         return _learn(s, reward, goal).ac;
     }
 
+    void printQvalues(){
+        for (int i = 1 ; i < this->num_actions_options ; i++){
+            cout << "Q_table[" << i << "] = " << this->Q_Table[i] << endl;
+        }
+    }
+
 protected:
 
     void computeQa(const State& state) {
@@ -244,7 +250,7 @@ protected:
             inputs[i] = state->at(i);
 
         //Let's run all the NN here in series, not in parallel
-        for (int NN_num = 0; NN_num < this->num_actions_options ; NN_num){
+        for (int NN_num = 0; NN_num < this->num_actions_options ; NN_num++){
           fann_type* out = fann_run(this->neural_networks[NN_num], inputs);
           this->Q_Table[NN_num] = out[0];
         }

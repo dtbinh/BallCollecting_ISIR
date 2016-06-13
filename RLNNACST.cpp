@@ -1,6 +1,6 @@
-#ifndef VISU
-#define VISU
-#endif
+// #ifndef VISU
+// #define VISU
+// #endif
 
 //#include "run_rl.hpp"
 #include "collectball2.hpp"
@@ -64,7 +64,9 @@ int main(int argc, char **argv)
     const char *mapNameChar = mapName.c_str();
 
     CollectBall *collect_ball_simu;
-    collect_ball_simu->simuInitInside(vm["instances"].as<unsigned int>(), mapNameChar);
+    collect_ball_simu = new CollectBall();
+    //collect_ball_simu->simuInitInside(vm["instances"].as<unsigned int>(), mapNameChar);
+    collect_ball_simu->simuInitInside(vm["instances"].as<unsigned int>(), mapName);
 
     // Trial by Omar in order to have manual control over the simulator.
     RL_run2<FSTParam> runner(0, 0, false, 0, collect_ball_simu);

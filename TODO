@@ -27,3 +27,5 @@ if conditions.
 	-- 
 
 - Till now, all of this is based on 'no history'. I need to add the history later
+- The robot must reset after each episode. It doesn't do so at the moment.
+- The sensory reading is incorrect. Check the reading function from the raw sensory data

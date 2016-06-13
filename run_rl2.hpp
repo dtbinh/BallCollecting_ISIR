@@ -221,30 +221,55 @@ public:
         #endif
 
         int ac = 0; // This is the index of the current action
-        ////////
+        /*
+        What to do here?
+        We want to build the inputs vectors. The inputs coming from "computeIniInputs" function.
+        What is the input vector?
+            - All the sensory readings.
+            - All the actions as well
+        */
+
+        // // OLD TRIALS
         std::vector<double> motor_init(SimuParam::nb_motors, 0.5);
         std::vector<double>* tmp_inp_ini = new vector<double>(rlparam.nbInputsTotal(nb_max_inputs_on_time));
         this->Simulator->computeIniInputs(tmp_inp_ini, motor_init);
-
         for(int i=nb_max_inputs_on_time; i < tmp_inp_ini->size(); i++)
             tmp_inp_ini->operator[](i) = tmp_inp_ini->at(i % nb_max_inputs_on_time);
-
         boost::shared_ptr< std::vector<double> > complete_input(tmp_inp_ini);
         boost::shared_ptr< std::vector<double> > _inputs(this->stx->parse(*complete_input));
+
+        // // !!!!! TODO: Check what is this part for in Matthieu code
+        // for(int i=nb_max_inputs_on_time; i < tmp_inp_ini->size(); i++)
+        //     tmp_inp_ini->operator[](i) = tmp_inp_ini->at(i % nb_max_inputs_on_time);
+
+        // boost::shared_ptr< std::vector<double> > complete_input(tmp_inp_ini);
+        // boost::shared_ptr< std::vector<double> > _inputs(this->stx->parse(*complete_input));
+        // boost::shared_ptr< std::vector<double> > complete_input(tmp_inp_ini);
+        // boost::shared_ptr< std::vector<double> > _inputs(this->stx->parse(*complete_input));
+
+        // std::vector<double>* tmp_inp_ini = new vector<double>(rlparam.nbInputsTotal(nb_max_inputs_on_time));
+        // this->Simulator->computeIniInputs(tmp_inp_ini, motor_init);
+        // boost::shared_ptr< std::vector<double> > _inputs(tmp_inp_ini);
 
         this->algo->startEpisode(_inputs, ac);
 
         this->reward = this->Simulator->computeReward(this->RewardNumber); //This is the number of balls collected. It is in RLNNACST
+
+        cout << "Reward is given already " << endl;
         this->rreward = 0;
         this->powgamma = 1.0d;
         int step;
         for (step = 0; true; ){
             _inputs.reset(this->stx->parse(*complete_input));
+            // This is for debugging purpose
+            this->printInputVector(_inputs); 
             #ifndef TESTPERF
             ac = algo->learn(_inputs, reward, this->Simulator->end(this->FinalGoal)); // The end here should take a parameter in the future, indicating the end condition
             #else //TESTPERF
             ac = algo->decision(_inputs, true);
             #endif
+
+            // cout << "Action #ac = " << ac << " ,, ";
 
             if(this->Simulator->end(this->FinalGoal) || step >= this->Simulator->step_limit)
                 break;
@@ -276,9 +301,10 @@ public:
             }
             step += timestep_decision;
         }
+        cout << endl;
         step_sum += step;
 
-        cball += this->Simulator->simu_perf(); // I am not sure if this is of concern when building the options
+        this->cball += this->Simulator->simu_perf(); // I am not sure if this is of concern when building the options
         this->algo->endEpisode(rreward); //TODO: I need to add the instance to the code. --> ???
     }
 
@@ -288,7 +314,7 @@ public:
         */
         for(int episode=0; episode < rlparam.max_episod; episode++) {
           this->runOneEpisode(episode);
-          this->avg.score.push_back(cball);
+          this->avg.score.push_back(this->cball);
           this->avg.reward_sum.push_back(reward_sum);
           this->avg.step_sum.push_back(step_sum);
 
@@ -297,7 +323,20 @@ public:
           //this->avg.personal_best_step_sum.push_back(my_best_step_sum);
 
           this->avg.populate++;
+
+          cout << "The performance of episode #" << episode << " is : " << this->cball << endl;
+          this->algo->printQvalues();
         }
+        
+    }
+
+    void printInputVector(boost::shared_ptr< std::vector<double> > sensory_vector){
+        std::vector<double> currentReadings = *sensory_vector.get();
+        cout << "Sensory input: ";
+        for (size_t i = 0; i < currentReadings.size() ; i++){
+            cout << currentReadings[i] << " , ";
+        }
+        cout << endl;
     }
 
 private:
