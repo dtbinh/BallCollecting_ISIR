@@ -1,6 +1,6 @@
-// #ifndef VISU
-// #define VISU
-// #endif
+#ifndef VISU
+#define VISU
+#endif
 
 //#include "run_rl.hpp"
 #include "collectball2.hpp"

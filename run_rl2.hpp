@@ -284,7 +284,7 @@ public:
 
             }
             this->reward = 0;
-
+            cout << "Current time decision is: " << timestep_decision << endl;
             for(int timestep=0; timestep < timestep_decision; timestep ++) {
 
                 boost::scoped_ptr< std::vector<double> > outputs(this->ActionFactoryInstance->computeOutputs(ac, timestep, primitive_actions)); //This should deal with primitive actions only
@@ -296,6 +296,11 @@ public:
 
                 if(this->Simulator->end(this->FinalGoal)){ //In the end() here, I must give it the condition number (for the options sake)
                     timestep_decision = timestep + 1;
+                    complete_input.reset(this->computeInputs(complete_input.get(), *outputs));
+                    break;
+                }
+
+                if (this->Simulator->end(this->FinalGoal)){
                     break;
                 }
             }
@@ -337,6 +342,20 @@ public:
             cout << currentReadings[i] << " , ";
         }
         cout << endl;
+    }
+
+    std::vector<double>* computeInputs(std::vector<double>* last_input, const std::vector<double>& ac) {
+        int nbInputsTotal = this->rlparam.nbInputsTotal(nb_max_inputs_on_time);
+        std::vector<double>* inputs = new std::vector<double>(nbInputsTotal);
+
+        this->Simulator->computeIniInputs(inputs, ac);
+
+        for(int i=0; i < nbInputsTotal - nb_max_inputs_on_time; i++)
+            inputs->operator[](i + nb_max_inputs_on_time) = last_input->at(i);
+
+        //     bib::Logger::PRINT_ELEMENTS_FT<>(*inputs);
+
+        return inputs;
     }
 
 private:

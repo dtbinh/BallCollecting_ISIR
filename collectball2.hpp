@@ -1,6 +1,6 @@
-// #ifndef VISU
-// #define VISU
-// #endif
+#ifndef VISU
+#define VISU
+#endif
 
 #include <iostream>
 #include <stdlib.h>     /* srand, rand */
@@ -389,6 +389,7 @@ public:
 
         int index = 0;
         // *** set inputs ***
+        cout << "Sensors value : " ;
         for (size_t j = 0; j < nb_lasers; j++)
         {
             double d = this->robot->get_lasers()[j].get_dist();
@@ -403,6 +404,7 @@ public:
         {
             double actL = (double) this->robot->get_light_sensors()[j].get_activated();
             double actR = (double) this->robot->get_light_sensors()[j+1].get_activated();
+            cout << actL << " , " << actR << " , ";
             inputs->operator[](index+j) = actL;
             inputs->operator[](index+j+1) = actR;
         }
@@ -413,9 +415,16 @@ public:
         inputs->operator[](index+1) = (double) this->robot->get_right_bumper();
         inputs->operator[](index+2) = (double) this->robot_carrying_ball();
 
+        cout << (double) this->robot->get_left_bumper() << " , ";
+        cout << (double) this->robot->get_right_bumper() << " , ";
+        cout << (double) this->robot_carrying_ball() << " , ";
+
         index = index + 3;
 
         inputs->operator[](index) = (double) !this->never_pull_switch();
+
+        cout << (double) !this->never_pull_switch() << endl;
+
         index++;
 
         for(uint i=index; i< index + ac.size(); i++)
