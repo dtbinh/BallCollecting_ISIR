@@ -157,24 +157,26 @@ public:
         fann_type inputs[size_input_state];
         fann_type out[1];
 
-        for(int i=0; i < size_input_state ; i++)
+        // cout << "Last state = " ;
+        for(int i=0; i < size_input_state ; i++){
             inputs[i] = lastState->at(i);
+            // cout << inputs[i] << " , ";
+        }
+        // cout << endl;
         out[0] = delta;
 
-        if(internal_step > 0)
-            fann_train(neural_networks[a], inputs, out); //So, you only train the NN of the current selected action
+        // if(internal_step > 0)
+        fann_train(neural_networks[a], inputs, out); //So, you only train the NN of the current selected action
 
-        //take action a, observe reward, and next state
-        //delete this->lastAction;
+        // take action a, observe reward, and next state
+        // delete this->lastAction;
         this->lastAction = ap;
         lastState = state;
 
+        // cout << "Current reward (delta) = " << delta << endl;
+
         return {ap, gotGreedy};
     }
-
-    // Policy<State>* copyPolicy() {
-    //     return new SarsaNN(*this);
-    // }
 
     double mse() {
 #ifndef NDEBUG
@@ -235,7 +237,7 @@ public:
     }
 
     void printQvalues(){
-        for (int i = 1 ; i < this->num_actions_options ; i++){
+        for (int i = 0 ; i < this->num_actions_options ; i++){
             cout << "Q_table[" << i << "] = " << this->Q_Table[i] << endl;
         }
     }

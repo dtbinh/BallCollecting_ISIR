@@ -10,4 +10,4 @@ g++ -pipe -Wall -DUSE_SDL -O3 -msse2 -ggdb3 -g -std=c++11 *.cpp ./libfastsim/*.c
 -lboost_program_options -lboost_filesystem -lboost_system -L/usr/lib/x86_64-linux-gnu -L/usr/local/lib \
 -o RLNNACST
 
-./RLNNACST --map b_a2_c2.pbm --instances 1 --actions actions_s15_n17 --states states_h1
+./RLNNACST --map b_a2_c2.pbm --instances 0 --actions actions_s15_n17 --states states_h1

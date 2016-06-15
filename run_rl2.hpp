@@ -56,7 +56,7 @@ struct RLAllParam {
     }
 };
 
-template <class SimuParam>
+template <class SimuParam, class SimulatorType>
 class RL_run2 {
 public:
     static constexpr int nb_max_inputs_on_time = SimuParam::sensor_size + SimuParam::nb_motors;
@@ -79,13 +79,15 @@ public:
       list<int> personal_best_step_sum;
     };
 
-    RL_run2(int RewardNumber, int FinalGoal, bool UseOptions, int NumOptions, CollectBall *Simulator){
+    // RL_run2(int RewardNumber, int FinalGoal, bool UseOptions, int NumOptions, CollectBall *Simulator){
+    RL_run2(int RewardNumber, int FinalGoal, bool UseOptions, int NumOptions, int instance, string mapName){
         this->RewardNumber = RewardNumber;
         this->FinalGoal = FinalGoal;
         this->ActionFactoryInstance = new ActionFactory(2); // 2 is the number of motors
         this->nb_options = NumOptions;
         this->optionsUsed = UseOptions; // This variable will decide if opt
-        this->Simulator = Simulator;
+        this->instance = instance;
+        this->mapName = mapName;
     }
 
 
@@ -174,6 +176,16 @@ public:
         this->primitive_actions = this->ActionFactoryInstance->read(vm["actions"].as<std::string>());
         this->nb_primitive_actions = this->ActionFactoryInstance->getActionsNumber();
 
+        // for (auto &action: this->primitive_actions){
+        //     for (auto &motor: action){
+        //         for (auto &value: motor){
+        //             cout << value << " " ;
+        //         }
+        //         cout << endl;
+        //     }
+        // }
+        // std::exit(0);
+
         for (int i = 0; i < this->nb_primitive_actions ; i++) // Note that this is for primitive actions only at the moment
           actions_time.push_back(this->primitive_actions.at(i).at(0).at(2));
 
@@ -255,20 +267,21 @@ public:
 
         this->reward = this->Simulator->computeReward(this->RewardNumber); //This is the number of balls collected. It is in RLNNACST
 
-        cout << "Reward is given already " << endl;
+        // cout << "Reward is given already " << endl;
         this->rreward = 0;
         this->powgamma = 1.0d;
         int step;
         for (step = 0; true; ){
             _inputs.reset(this->stx->parse(*complete_input));
             // This is for debugging purpose
-            this->printInputVector(_inputs); 
+            // this->printInputVector(_inputs); 
             #ifndef TESTPERF
-            ac = algo->learn(_inputs, reward, this->Simulator->end(this->FinalGoal)); // The end here should take a parameter in the future, indicating the end condition
+            ac = this->algo->learn(_inputs, reward, this->Simulator->end(this->FinalGoal)); // The end here should take a parameter in the future, indicating the end condition
             #else //TESTPERF
-            ac = algo->decision(_inputs, true);
+            ac = this->algo->decision(_inputs, true);
             #endif
 
+            // this->algo->printQvalues();
             // cout << "Action #ac = " << ac << " ,, ";
 
             if(this->Simulator->end(this->FinalGoal) || step >= this->Simulator->step_limit)
@@ -284,8 +297,11 @@ public:
 
             }
             this->reward = 0;
-            cout << "Current time decision is: " << timestep_decision << endl;
-            for(int timestep=0; timestep < timestep_decision; timestep ++) {
+            // cout << "Current action selected is: " << ac << endl;
+            for(int timestep=0; timestep < timestep_decision; timestep++) {
+
+                // cout << "timestep_decision - from run_rl2 = " << timestep_decision << endl;
+                // cout << "Time step - from run_rl2 = " << timestep << endl;
 
                 boost::scoped_ptr< std::vector<double> > outputs(this->ActionFactoryInstance->computeOutputs(ac, timestep, primitive_actions)); //This should deal with primitive actions only
                 this->Simulator->step_simu(*outputs);
@@ -294,13 +310,14 @@ public:
                 this->rreward += lreward * powgamma;
                 this->powgamma *= rlparam.DefaultParam.gamma;
 
-                if(this->Simulator->end(this->FinalGoal)){ //In the end() here, I must give it the condition number (for the options sake)
-                    timestep_decision = timestep + 1;
+                if(!this->Simulator->end(this->FinalGoal)){ //In the end() here, I must give it the condition number (for the options sake)
                     complete_input.reset(this->computeInputs(complete_input.get(), *outputs));
-                    break;
+                    // cout << "GGGOOOOOOOOOOOOOOOOOOOOOOODDDDDDDDDDD" << endl;
                 }
 
-                if (this->Simulator->end(this->FinalGoal)){
+                else{
+                    timestep_decision = timestep + 1; // This is from M code --> what does it mean???
+                    // cout << "BREAAAAAAAAAAAAAAAAAAAAK !" << endl; 
                     break;
                 }
             }
@@ -318,19 +335,25 @@ public:
             This will run the simulator till either the time budget expires, or the finalGoal condition is satisfied.
         */
         for(int episode=0; episode < rlparam.max_episod; episode++) {
-          this->runOneEpisode(episode);
-          this->avg.score.push_back(this->cball);
-          this->avg.reward_sum.push_back(reward_sum);
-          this->avg.step_sum.push_back(step_sum);
+            /////////////////////////////////////////
+            // I need first to reset the simulator
+            this->Simulator = nullptr;
+            this->Simulator = new SimulatorType();
+            this->Simulator->simuInitInside(this->instance, this->mapName);
+            /////////////////////////////////////////
+            this->runOneEpisode(episode);
+            this->avg.score.push_back(this->cball);
+            this->avg.reward_sum.push_back(reward_sum);
+            this->avg.step_sum.push_back(step_sum);
 
-          //this->avg.personal_best_score.push_back(my_best_score);
-          //this->avg.personal_best_reward_sum.push_back(my_best_reward);
-          //this->avg.personal_best_step_sum.push_back(my_best_step_sum);
+            //this->avg.personal_best_score.push_back(my_best_score);
+            //this->avg.personal_best_reward_sum.push_back(my_best_reward);
+            //this->avg.personal_best_step_sum.push_back(my_best_step_sum);
 
-          this->avg.populate++;
+            this->avg.populate++;
 
-          cout << "The performance of episode #" << episode << " is : " << this->cball << endl;
-          this->algo->printQvalues();
+            cout << "The performance of episode #" << episode << " is : " << this->cball << endl;
+            this->algo->printQvalues();
         }
         
     }
@@ -381,4 +404,7 @@ private:
     double reward_sum;
     int step_sum;
     CollectBall *Simulator;
+
+    int instance;
+    string mapName;
 };

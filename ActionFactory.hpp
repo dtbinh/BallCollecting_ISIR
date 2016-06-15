@@ -74,25 +74,42 @@ public:
         for (auto &action: actionList){
             for (auto &motor: action){
                 for (auto &value: motor){
-                    cout << value << " " ;
+                    outputFile << value << " " ;
                 }
-                cout << endl;
+                outputFile << endl;
             }
         }
         outputFile.close();
     }
 
-    std::vector<double>* computeOutputs(const int ac_id, int timestep, const totalActionList& actionsList) {
+    std::vector<double>* computeOutputs(const int ac_id, const int timestep, const totalActionList& actionsList) {
     // This function compute the value of the action at a given timestep.
     const singleAction& action = actionsList.at(ac_id);
 
     std::vector<double>* outputs = new std::vector<double>(this->nb_motors, 0.5);
 
-    for(int motor=0; motor < this->nb_motors; motor++)
-        outputs->operator[](motor) = action[motor][0] * timestep + action[motor][1];
+    // cout << "Time step - from computeOutputs = " << timestep << endl;
+    // cout << "Calculated outputs = " ;
+    for(int motor=0; motor < this->nb_motors; motor++){
+        outputs->operator[](motor) = action[motor][0] * (double) timestep + action[motor][1];
+        // cout << action[motor][0] << ", " << action[motor][1] << " --> " << outputs->operator[](motor) << endl;
+    }
+    // cout << endl;
+
 
     return outputs;
-}
+    }
+
+    void printAllActions()const{
+        for (auto &action: this->allActions){
+            for (auto &motor: action){
+                for (auto &value: motor){
+                    cout << value << " " ;
+                }
+                cout << endl;
+            }
+        }
+    }
 
 private:
     int nb_motors;

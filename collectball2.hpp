@@ -1,7 +1,3 @@
-#ifndef VISU
-#define VISU
-#endif
-
 #include <iostream>
 #include <stdlib.h>     /* srand, rand */
 #include <tuple>
@@ -291,7 +287,6 @@ public:
         // cout << "robot_near_switch() = " << robot_near_switch() << endl;
         // cout << "_number_ball_in_basket = " << this->_number_ball_in_basket << endl;
         // cout << "this->_never_pull_switch = " << this->_never_pull_switch << endl;
-        
         if(!this->robot_carrying_ball()) {
             // cout << "Condition 1" << endl;
             int possible_ball = robot_near_ball();
@@ -389,7 +384,7 @@ public:
 
         int index = 0;
         // *** set inputs ***
-        cout << "Sensors value : " ;
+        // cout << "Sensors value : " ;
         for (size_t j = 0; j < nb_lasers; j++)
         {
             double d = this->robot->get_lasers()[j].get_dist();
@@ -404,7 +399,7 @@ public:
         {
             double actL = (double) this->robot->get_light_sensors()[j].get_activated();
             double actR = (double) this->robot->get_light_sensors()[j+1].get_activated();
-            cout << actL << " , " << actR << " , ";
+            // cout << actL << " , " << actR << " , ";
             inputs->operator[](index+j) = actL;
             inputs->operator[](index+j+1) = actR;
         }
@@ -415,15 +410,15 @@ public:
         inputs->operator[](index+1) = (double) this->robot->get_right_bumper();
         inputs->operator[](index+2) = (double) this->robot_carrying_ball();
 
-        cout << (double) this->robot->get_left_bumper() << " , ";
-        cout << (double) this->robot->get_right_bumper() << " , ";
-        cout << (double) this->robot_carrying_ball() << " , ";
+        // cout << (double) this->robot->get_left_bumper() << " , ";
+        // cout << (double) this->robot->get_right_bumper() << " , ";
+        // cout << (double) this->robot_carrying_ball() << " , ";
 
         index = index + 3;
 
         inputs->operator[](index) = (double) !this->never_pull_switch();
 
-        cout << (double) !this->never_pull_switch() << endl;
+        // cout << (double) !this->never_pull_switch() << endl;
 
         index++;
 
@@ -437,7 +432,10 @@ public:
         return _never_pull_switch;
     }
 
-    // void simuInitInside(int instance_num, const char *mapFileName) {
+    void simuReset(){
+
+    }
+    
     void simuInitInside(int instance_num, const string &mapFileName) {
         /*
         This function will build the collectball experiment (adding the robots, the switch, the hidden and the active balls,..etc)
@@ -453,18 +451,11 @@ public:
         this->ball_number = 0;
         this->build_instances();
         this->build_predifined_positions();
-        //cout << "simuInitInside - variables initialized " << endl;
         this->build_instances();
         this->build_predifined_positions();
-        // cout << "simuInitInside - instances initialized " << endl;
-        //this->setMap(mapFileName);
         this->setMap(mapFileName);
-        // cout << "simuInitInside - map initialized " << endl;
-        //for(auto item: this->instances[instance_num]) {
         this->add_robot_position(this->instances[instance_num].find('I')->second);
         for(std::multimap<char, int>::const_iterator it = this->instances[instance_num].begin(); it != this->instances[instance_num].end(); it ++) {
-            // cout << "item.first " << it->first << endl;
-            // cout << "item.second " << it->second << endl;
             switch (it->first) {
                 case 'B':
                     this->add_balls(it->second);
@@ -484,11 +475,6 @@ public:
                     std::cout << "ignore " << it->first << " while parsing map position" << std::endl;
                 }
         }
-        // cout << "this->ball_number = " << this->ball_number << endl;
-        // cout << "this->max_nb_ball = " << this->max_nb_ball << endl;
-
-        // cout << "simuInitInside - instance built " << endl;
-
         assert(this->ball_number == this->max_nb_ball);
         this->getCurrentBalls();
 
@@ -496,7 +482,6 @@ public:
         // Display the screen
         this->d = new Display(this->m, *this->robot);
         #endif
-        // cout << "simuInitInside is done :-) " << endl;
     }
 
     void build_instances(){

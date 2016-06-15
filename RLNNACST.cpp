@@ -1,6 +1,6 @@
-#ifndef VISU
-#define VISU
-#endif
+// #ifndef VISU
+// #define VISU
+// #endif
 
 //#include "run_rl.hpp"
 #include "collectball2.hpp"
@@ -61,15 +61,15 @@ int main(int argc, char **argv)
 
     string mapName("b_a2_c2.pbm");
     //string mapName(vm["map"].as<string>()); //--> This is the good one. The prev one is for testing only
-    const char *mapNameChar = mapName.c_str();
 
-    CollectBall *collect_ball_simu;
-    collect_ball_simu = new CollectBall();
-    //collect_ball_simu->simuInitInside(vm["instances"].as<unsigned int>(), mapNameChar);
-    collect_ball_simu->simuInitInside(vm["instances"].as<unsigned int>(), mapName);
+    // CollectBall *collect_ball_simu;
+    // collect_ball_simu = new CollectBall();
+    // collect_ball_simu->simuInitInside(vm["instances"].as<unsigned int>(), mapName);
 
     // Trial by Omar in order to have manual control over the simulator.
-    RL_run2<FSTParam> runner(0, 0, false, 0, collect_ball_simu);
+    // RL_run2<FSTParam> runner(0, 0, false, 0, collect_ball_simu);
+    // Input format : RL_run2(int RewardNumber, int FinalGoal, bool UseOptions, int NumOptions, int instance, string mapName)
+    RL_run2<FSTParam, CollectBall> runner(0, 0, false, 0, vm["instances"].as<unsigned int>(), mapName);
     runner.initializeEnvironment(argc, argv, desc);
     runner.runAllSteps();
 
