@@ -51,7 +51,8 @@ public:
     static constexpr float motor_power = 5.;
     static constexpr int stuck_history = 100;
     static constexpr float dist_stuck = 10.f;
-    static constexpr int step_limit = 10000;
+    static constexpr int step_limit = 100000;
+    // static constexpr int step_limit = 10000;
     static constexpr unsigned int max_nb_ball = 4;
 
     typedef std::pair<int,int> objectPosition;
@@ -455,6 +456,7 @@ public:
         this->build_predifined_positions();
         this->setMap(mapFileName);
         this->add_robot_position(this->instances[instance_num].find('I')->second);
+        this->define_robot_sensors();
         for(std::multimap<char, int>::const_iterator it = this->instances[instance_num].begin(); it != this->instances[instance_num].end(); it ++) {
             switch (it->first) {
                 case 'B':

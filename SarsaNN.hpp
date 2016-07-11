@@ -13,6 +13,8 @@
 #include <iostream>
 #include <string>
 #include <sstream> // Added by Omar in order to make more robust logging!
+#include <deque> // For the experience replay
+
 
 #define MAX_REPLAY_FOR_ON_TRAJECTORY 20
 
@@ -39,6 +41,11 @@ struct RLParam {
       bool gotGreedy;
   };
 
+  struct Experience_replay
+  {
+      typedef std::vector<double> experience;
+
+  };
 
 using namespace sml;
 typedef struct fann* NN;
@@ -152,6 +159,9 @@ public:
             // Notice here that each action can have different time
             delta = delta + pow(this->param.gamma, actions_time[a]) * this->Q_Table[ap];
         }
+        else{
+            cout << "Goal achieved : " << delta << endl;
+        }
 
 
         fann_type inputs[size_input_state];
@@ -175,6 +185,13 @@ public:
 
         // cout << "Current reward (delta) = " << delta << endl;
 
+        /*
+        This is for debugging purpose
+        */
+        if (goal){
+            computeQa(state);
+            this->printQvalues();
+        }
         return {ap, gotGreedy};
     }
 

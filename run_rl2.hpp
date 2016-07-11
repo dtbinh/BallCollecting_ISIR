@@ -276,7 +276,7 @@ public:
             // This is for debugging purpose
             // this->printInputVector(_inputs); 
             #ifndef TESTPERF
-            ac = this->algo->learn(_inputs, reward, this->Simulator->end(this->FinalGoal)); // The end here should take a parameter in the future, indicating the end condition
+            ac = this->algo->learn(_inputs, this->reward, this->Simulator->end(this->FinalGoal)); // The end here should take a parameter in the future, indicating the end condition
             #else //TESTPERF
             ac = this->algo->decision(_inputs, true);
             #endif
@@ -353,7 +353,7 @@ public:
             this->avg.populate++;
 
             cout << "The performance of episode #" << episode << " is : " << this->cball << endl;
-            this->algo->printQvalues();
+            // this->algo->printQvalues();
         }
         
     }
