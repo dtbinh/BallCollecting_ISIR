@@ -157,7 +157,6 @@ public:
     }
 
     bool ball_collected (){
-
         bool retr = _number_ball_in_basket != _last_number_ball_in_basket;
         _last_number_ball_in_basket = _number_ball_in_basket;
         return retr;
@@ -209,7 +208,8 @@ public:
         }
 
         if (bdrop == true)
-            return 100.0;
+            // return 100.0;
+            return 1.0;
         else
             return 0.0;
 
@@ -424,7 +424,8 @@ public:
         index++;
 
         for(uint i=index; i< index + ac.size(); i++)
-            inputs->operator[](i) = ac.at( i - index );
+            // inputs->operator[](i) = ac.at( i - index );
+            inputs->operator[](i) = 0.0;
 
         // cout << "---------------- Done with computeIniInputs, with vector size : " << inputs->size() << endl;
     }

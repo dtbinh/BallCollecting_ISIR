@@ -84,14 +84,14 @@ public:
 
             fann_set_learning_momentum(neural_networks[i], 0.);
             fann_set_train_error_function(neural_networks[i], FANN_ERRORFUNC_LINEAR);
-	    fann_set_training_algorithm(neural_networks[i], FANN_TRAIN_INCREMENTAL);
+            fann_set_training_algorithm(neural_networks[i], FANN_TRAIN_INCREMENTAL);
 
 
             fann_set_train_stop_function(neural_networks[i], FANN_STOPFUNC_MSE);
             fann_set_learning_rate(neural_networks[i], this->param.alpha);
         }
-
-        //LOG_DEBUG(weight_sum());
+        this->num_of_connections = fann_get_total_connections (neural_networks[0]);
+        this->NN_weights = new double [this->num_of_connections];
     }
 
     ~SarsaNN() {
@@ -122,6 +122,8 @@ public:
         #endif // TESTPERF
         q_max.str(std::string()); //Clearing the stringstream
         q_avg.str(std::string()); //Clearing the stringstream
+
+        this->printNNParameters();
     }
 
     int decision(const State& state, bool greedy) {
@@ -259,6 +261,17 @@ public:
         }
     }
 
+    void printNNParameters(){
+        for (int NN_num = 0; NN_num < this->num_actions_options ; NN_num++){
+            cout << "Neural network number : " << NN_num << endl;
+            fann_get_weights(this->neural_networks[NN_num], this->NN_weights);
+            for (int i = 0; i < this->num_of_connections; i++){
+                cout << *this->NN_weights[i] << " , ";
+            }
+            cout << endl;
+        }
+    }
+
 protected:
 
     void computeQa(const State& state) {
@@ -324,6 +337,8 @@ protected:
 
     std::vector<int> actions_time;
 //    RLAllParam rlparam;
+    unsigned int num_of_connections;
+    fann_type *NN_weights; // This vector is to store the weights of the NN
 };
 
 }

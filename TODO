@@ -2,7 +2,7 @@ TODO list
 *******************
 
 - The end() method inside the CollectBall class, I may need to overwrite it in order to accept different ending scienario (depending on the option)
------------------------------------
+---------------------------------------------------------------------------------------------------------
 
 In general:
 *************
@@ -29,3 +29,11 @@ if conditions.
 - Till now, all of this is based on 'no history'. I need to add the history later
 - The robot must reset after each episode. It doesn't do so at the moment.
 - The sensory reading is incorrect. Check the reading function from the raw sensory data
+
+- I think I should implement the simplest case of linear function approximation (with only one linear model representing Q(s,a) )
+---------------------------------------------------------------------------------------------------------
+Questions and issues:
+=======================
+- How to know if the NN is being trained correctly?
+- Why the weights of the linear model (and also the NN) goes super high?
+	-- 

@@ -20,7 +20,8 @@
 #include <boost/program_options.hpp>
 #include <boost/scoped_ptr.hpp>
 
-#include "SarsaNN.hpp" // This is temporarily, for testing purpose
+// #include "SarsaNN.hpp" // This is temporarily, for testing purpose
+#include "LinearFA.hpp" // This is temporarily, for testing purpose
 #include "ActionFactory.hpp"
 #include "StateExtractor.hpp"
 
@@ -197,9 +198,11 @@ public:
             Build the policy function (with value function approximator inside)
         ********************************************************************************************/
         if (this->optionsUsed == true)
-          this->algo = new sml::SarsaNN<EnvState>(this->nb_options + this->nb_primitive_actions, rlparam.DefaultParam, this->stx->getNumberInput(), this->actions_time);
+          // this->algo = new sml::SarsaNN<EnvState>(this->nb_options + this->nb_primitive_actions, rlparam.DefaultParam, this->stx->getNumberInput(), this->actions_time);
+          this->algo = new sml::LinearFA<EnvState>(this->nb_options + this->nb_primitive_actions, rlparam.DefaultParam, this->stx->getNumberInput(), this->actions_time);
         else
-          this->algo = new sml::SarsaNN<EnvState>(this->nb_primitive_actions, rlparam.DefaultParam, this->stx->getNumberInput(), this->actions_time);
+          // this->algo = new sml::SarsaNN<EnvState>(this->nb_primitive_actions, rlparam.DefaultParam, this->stx->getNumberInput(), this->actions_time);
+          this->algo = new sml::LinearFA<EnvState>(this->nb_primitive_actions, rlparam.DefaultParam, this->stx->getNumberInput(), this->actions_time);
         #ifdef LOADFILE
           this->algo->read(loading_file);
         #endif
@@ -221,7 +224,6 @@ public:
         /*
           This will progress the simulator for an entire episode
         */
-        this->cball = 0;
         this->reward_sum = 0;
         this->step_sum = 0;
 
@@ -312,12 +314,10 @@ public:
 
                 if(!this->Simulator->end(this->FinalGoal)){ //In the end() here, I must give it the condition number (for the options sake)
                     complete_input.reset(this->computeInputs(complete_input.get(), *outputs));
-                    // cout << "GGGOOOOOOOOOOOOOOOOOOOOOOODDDDDDDDDDD" << endl;
                 }
 
                 else{
                     timestep_decision = timestep + 1; // This is from M code --> what does it mean???
-                    // cout << "BREAAAAAAAAAAAAAAAAAAAAK !" << endl; 
                     break;
                 }
             }
@@ -326,7 +326,6 @@ public:
         cout << endl;
         step_sum += step;
 
-        this->cball += this->Simulator->simu_perf(); // I am not sure if this is of concern when building the options
         this->algo->endEpisode(rreward); //TODO: I need to add the instance to the code. --> ???
     }
 
@@ -334,12 +333,14 @@ public:
         /*
             This will run the simulator till either the time budget expires, or the finalGoal condition is satisfied.
         */
-        for(int episode=0; episode < rlparam.max_episod; episode++) {
+        // for(int episode=0; episode < rlparam.max_episod; episode++) {
+        for(int episode=0; episode < 20; episode++) { // Just for testing purpose
             /////////////////////////////////////////
             // I need first to reset the simulator
             this->Simulator = nullptr;
             this->Simulator = new SimulatorType();
             this->Simulator->simuInitInside(this->instance, this->mapName);
+            this->cball = 0;
             /////////////////////////////////////////
             this->runOneEpisode(episode);
             this->avg.score.push_back(this->cball);
@@ -352,6 +353,8 @@ public:
 
             this->avg.populate++;
 
+
+            this->cball += this->Simulator->simu_perf(); // I am not sure if this is of concern when building the options
             cout << "The performance of episode #" << episode << " is : " << this->cball << endl;
             // this->algo->printQvalues();
         }
@@ -391,7 +394,8 @@ private:
     bool optionsUsed; // This variable will decide if options will be used in this RL problem or not
     sml::ActionFactory *ActionFactoryInstance;
     vector<int> actions_time;
-    sml::SarsaNN<EnvState> *algo;
+    // sml::SarsaNN<EnvState> *algo;
+    sml::LinearFA<EnvState> *algo;
 
     // These variables are more related to the learning process itself.
     double reward;
